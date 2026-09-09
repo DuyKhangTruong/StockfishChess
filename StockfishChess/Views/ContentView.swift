@@ -30,7 +30,11 @@ struct ContentView: View {
             } else {
                 HStack(alignment: .top, spacing: 24) {
                     HStack(alignment: .top, spacing: 14) {
-                        EvalBarView(score: engine.lines.first?.score, orientation: orientation)
+                        // The eval bar is analysis kit: showing it while you
+                        // play would hand you the verdict on every move.
+                        if mode == .analysis {
+                            EvalBarView(score: engine.lines.first?.score, orientation: orientation)
+                        }
                         BoardView(
                             game: game,
                             orientation: orientation,
@@ -45,7 +49,8 @@ struct ContentView: View {
                         AnalysisPanelView(
                             engine: engine,
                             fen: game.fen,
-                            onPlayLine: game.atLatest ? { game.applyUCI($0) } : nil
+                            onPlayLine: mode == .analysis && game.atLatest ? { game.applyUCI($0) } : nil,
+                            playStatusText: playStatusText
                         )
                         MoveListView(game: game)
                         ControlsView(
@@ -183,6 +188,15 @@ struct ContentView: View {
 
     private var interactive: Bool {
         !game.isGameOver && game.atLatest && (mode == .analysis || game.turn == playerColor)
+    }
+
+    /// Non-nil only while playing a game, which is also what tells the panel
+    /// to keep the evaluation to itself.
+    private var playStatusText: String? {
+        guard mode == .play else { return nil }
+        if let result = game.result { return result }
+        if !game.atLatest { return "Reviewing an earlier move." }
+        return game.turn == playerColor ? "Your move." : "Stockfish is thinking…"
     }
 
     private var analysisArrow: (from: Int, to: Int)? {

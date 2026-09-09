@@ -11,6 +11,12 @@ struct AnalysisPanelView: View {
     var fen: String
     var onPlayLine: ((String) -> Void)? = nil
 
+    /// Set while playing a game against the engine. The evaluation and the
+    /// principal variations would give the game away, so they are replaced by
+    /// this line of text — the engine's own telemetry stays, since knowing it
+    /// is thinking tells you nothing about the position.
+    var playStatusText: String? = nil
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -42,7 +48,9 @@ struct AnalysisPanelView: View {
         case .idle:
             EmptyView()
         case .ready:
-            if engine.lines.isEmpty {
+            if let playStatusText {
+                Text(playStatusText).font(.system(size: 12)).foregroundStyle(Theme.muted)
+            } else if engine.lines.isEmpty {
                 Text("Waiting for a position.").font(.system(size: 12)).foregroundStyle(Theme.muted)
             } else {
                 VStack(alignment: .leading, spacing: 2) {

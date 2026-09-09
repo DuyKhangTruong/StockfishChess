@@ -41,8 +41,9 @@ struct BoardView: View {
                 .frame(width: size, height: size)
 
                 if let arrow, let path = arrowPath(from: arrow.from, to: arrow.to, cell: cell) {
-                    path.stroke(Theme.brass.opacity(0.85), style: StrokeStyle(lineWidth: cell * 0.09, lineCap: .round))
+                    path.fill(Theme.brass.opacity(0.85))
                         .frame(width: size, height: size)
+                        .allowsHitTesting(false)
                 }
 
                 if let pending = game.pendingPromotion {
@@ -121,9 +122,48 @@ struct BoardView: View {
             let (col, row): (Int, Int) = orientation == .white ? (file, 7 - rank) : (7 - file, rank)
             return CGPoint(x: CGFloat(col) * cell + cell / 2, y: CGFloat(row) * cell + cell / 2)
         }
+        let start = point(for: from)
+        let end = point(for: to)
+
+        let dx = end.x - start.x, dy = end.y - start.y
+        let length = hypot(dx, dy)
+        guard length > 0.001 else { return nil }
+        let ux = dx / length, uy = dy / length   // along the arrow
+        let px = -uy, py = ux                    // across it
+
+        // Both ends are pulled in a little: the tail so the piece being moved
+        // stays readable, the tip so the head points *at* the destination
+        // square rather than burying itself in the piece standing there.
+        let tailInset = cell * 0.30
+        let tipInset = cell * 0.10
+        let headLength = cell * 0.30
+        let headHalfWidth = cell * 0.16
+        let shaftHalfWidth = cell * 0.045
+
+        let tail = CGPoint(x: start.x + ux * tailInset, y: start.y + uy * tailInset)
+        let tip = CGPoint(x: end.x - ux * tipInset, y: end.y - uy * tipInset)
+        // Where the head meets the shaft.
+        let neck = CGPoint(x: tip.x - ux * headLength, y: tip.y - uy * headLength)
+
+        // A move between adjacent squares still leaves a shaft, but bail out
+        // rather than draw an inside-out arrow if the geometry ever collapses.
+        guard (neck.x - tail.x) * ux + (neck.y - tail.y) * uy > 0 else { return nil }
+
+        func offset(_ point: CGPoint, _ amount: CGFloat) -> CGPoint {
+            CGPoint(x: point.x + px * amount, y: point.y + py * amount)
+        }
+
+        // One closed outline — shaft down one side, around the head, back up
+        // the other — so it can be filled as a single solid shape.
         var path = Path()
-        path.move(to: point(for: from))
-        path.addLine(to: point(for: to))
+        path.move(to: offset(tail, shaftHalfWidth))
+        path.addLine(to: offset(neck, shaftHalfWidth))
+        path.addLine(to: offset(neck, headHalfWidth))
+        path.addLine(to: tip)
+        path.addLine(to: offset(neck, -headHalfWidth))
+        path.addLine(to: offset(neck, -shaftHalfWidth))
+        path.addLine(to: offset(tail, -shaftHalfWidth))
+        path.closeSubpath()
         return path
     }
 
