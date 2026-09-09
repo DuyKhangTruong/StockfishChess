@@ -13,5 +13,6 @@ struct StockfishChessApp: App {
         WindowGroup {
             ContentView()
         }
+        .windowResizability(.contentSize)
     }
 }
