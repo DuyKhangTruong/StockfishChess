@@ -41,66 +41,22 @@ struct ContentView: View {
 
             if stockfishBookmark.isEmpty || isEngineError {
                 pathPrompt
+                Spacer(minLength: 0)
             } else {
                 HStack(alignment: .top, spacing: 24) {
-                    HStack(alignment: .top, spacing: 14) {
-                        // The eval bar is analysis kit: showing it while you
-                        // play would hand you the verdict on every move.
-                        if mode != .play {
-                            EvalBarView(score: panelEngine.lines.first?.score, orientation: orientation)
-                        }
-                        BoardView(
-                            game: game,
-                            orientation: orientation,
-                            arrow: engineArrow,
-                            interactive: interactive,
-                            onMove: { from, to in game.makeMove(from: from, to: to) }
-                        )
-                    }
-                    .frame(maxWidth: 600)
+                    boardArea
 
-                    VStack(spacing: 14) {
-                        AnalysisPanelView(
-                            engine: panelEngine,
-                            fen: mode == .match ? matchPanel.fen : game.fen,
-                            title: panelTitle,
-                            onPlayLine: mode == .analysis && game.atLatest ? { game.applyUCI($0) } : nil,
-                            playStatusText: playStatusText
-                        )
-                        MoveListView(game: game)
-                        ControlsView(
-                            mode: $mode, depth: $depth, multipv: $multipv, skill: $skill,
-                            movetimeMs: $movetimeMs, playerColor: $playerColor,
-                            onNewGame: newGame,
-                            onUndo: game.undo,
-                            onFlip: { orientation = orientation == .white ? .black : .white },
-                            onGoTo: game.goTo,
-                            cursor: game.cursor,
-                            lastPly: game.sanMoves.count,
-                            fen: game.fen,
-                            pgn: game.pgn,
-                            onLoadFEN: game.loadFEN
-                        ) {
-                            MatchControlsView(
-                                white: seat(for: .white),
-                                black: seat(for: .black),
-                                running: matchRunning,
-                                canStart: !game.isGameOver,
-                                hasMoves: !game.sanMoves.isEmpty,
-                                notice: matchNotice,
-                                onToggle: toggleMatch,
-                                onSwap: { match.engine2PlaysWhite.toggle() }
-                            )
-                        }
+                    // Scrolls rather than growing, so an expanded section can
+                    // never push the window's minimum height past the screen.
+                    ScrollView {
+                        sidePanel
                     }
                     .frame(width: 330)
                 }
             }
-
-            Spacer(minLength: 0)
         }
         .padding(24)
-        .frame(minWidth: 980, minHeight: 720)
+        .frame(minWidth: 840, minHeight: 600)
         .background(Theme.ink.ignoresSafeArea())
         .foregroundStyle(Theme.bone)
         .onAppear { launchEngineIfNeeded() }
@@ -127,6 +83,73 @@ struct ContentView: View {
             // works afterwards if you want to look from the other side.
             orientation = newValue
             scheduleSearch()
+        }
+    }
+
+    /// The board takes the largest square that fits the space left beside the
+    /// panel, and the eval bar is sized to match it rather than stretching to
+    /// the full window height.
+    private var boardArea: some View {
+        GeometryReader { geo in
+            // The eval bar is analysis kit: showing it while you
+            // play would hand you the verdict on every move.
+            let showEval = mode != .play
+            let evalWidth: CGFloat = showEval ? 40 + 14 : 0
+            let side = max(0, min(geo.size.width - evalWidth, geo.size.height))
+
+            HStack(alignment: .top, spacing: 14) {
+                if showEval {
+                    EvalBarView(score: panelEngine.lines.first?.score, orientation: orientation)
+                        .frame(height: side)
+                }
+                BoardView(
+                    game: game,
+                    orientation: orientation,
+                    arrow: engineArrow,
+                    interactive: interactive,
+                    onMove: { from, to in game.makeMove(from: from, to: to) }
+                )
+                .frame(width: side, height: side)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+        .frame(minWidth: 360, minHeight: 360)
+    }
+
+    private var sidePanel: some View {
+        VStack(spacing: 14) {
+            AnalysisPanelView(
+                engine: panelEngine,
+                fen: mode == .match ? matchPanel.fen : game.fen,
+                title: panelTitle,
+                onPlayLine: mode == .analysis && game.atLatest ? { game.applyUCI($0) } : nil,
+                playStatusText: playStatusText
+            )
+            MoveListView(game: game)
+            ControlsView(
+                mode: $mode, depth: $depth, multipv: $multipv, skill: $skill,
+                movetimeMs: $movetimeMs, playerColor: $playerColor,
+                onNewGame: newGame,
+                onUndo: game.undo,
+                onFlip: { orientation = orientation == .white ? .black : .white },
+                onGoTo: game.goTo,
+                cursor: game.cursor,
+                lastPly: game.sanMoves.count,
+                fen: game.fen,
+                pgn: game.pgn,
+                onLoadFEN: game.loadFEN
+            ) {
+                MatchControlsView(
+                    white: seat(for: .white),
+                    black: seat(for: .black),
+                    running: matchRunning,
+                    canStart: !game.isGameOver,
+                    hasMoves: !game.sanMoves.isEmpty,
+                    notice: matchNotice,
+                    onToggle: toggleMatch,
+                    onSwap: { match.engine2PlaysWhite.toggle() }
+                )
+            }
         }
     }
 

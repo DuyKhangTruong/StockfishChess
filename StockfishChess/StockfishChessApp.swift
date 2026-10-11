@@ -13,6 +13,7 @@ struct StockfishChessApp: App {
         WindowGroup {
             ContentView()
         }
-        .windowResizability(.contentSize)
+        .defaultSize(width: 1180, height: 820)
+        .windowResizability(.contentMinSize)
     }
 }
