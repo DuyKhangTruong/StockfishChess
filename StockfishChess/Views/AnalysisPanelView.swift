@@ -9,6 +9,7 @@ import SwiftUI
 struct AnalysisPanelView: View {
     @ObservedObject var engine: EngineManager
     var fen: String
+    var title: String = "ENGINE"
     var onPlayLine: ((String) -> Void)? = nil
 
     /// Set while playing a game against the engine. The evaluation and the
@@ -20,7 +21,9 @@ struct AnalysisPanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("ENGINE").font(Theme.mono(11)).tracking(2).foregroundStyle(Theme.boneDim)
+                Text(title).font(Theme.mono(11)).tracking(2).foregroundStyle(Theme.boneDim)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Spacer()
                 Circle().fill(dotColor).frame(width: 7, height: 7)
             }

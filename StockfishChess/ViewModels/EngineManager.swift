@@ -34,9 +34,15 @@ final class EngineManager: ObservableObject {
         var movetime: Int? = nil
         var infinite: Bool = false
         var multipv: Int = 1
+        /// Stockfish's "Skill Level", 0...20. Applied per search rather than
+        /// once, because the same engine plays at full strength in analysis
+        /// and handicapped in a game — whatever ran last must not leak over.
+        var skillLevel: Int = 20
     }
 
     @Published private(set) var status: Status = .idle
+    /// From the engine's "id name" reply, e.g. "Stockfish 17.1".
+    @Published private(set) var name: String? = nil
     @Published private(set) var lines: [EngineLine] = []
     @Published private(set) var depth: Int = 0
     @Published private(set) var nps: Int = 0
@@ -48,6 +54,7 @@ final class EngineManager: ObservableObject {
     private var readTask: Task<Void, Never>?
     private var searching = false
     private var activeTurn: PieceColor = .white
+    private var appliedSkillLevel: Int? = nil
 
     private var uciOkContinuation: CheckedContinuation<Bool, Never>?
     private var readyContinuations: [CheckedContinuation<Void, Never>] = []
@@ -64,6 +71,8 @@ final class EngineManager: ObservableObject {
         guard status != .launching else { return }
         shutdown()
         status = .launching
+        name = nil
+        appliedSkillLevel = nil
 
         do {
             let stream = try process.launch(url: url)
@@ -102,9 +111,14 @@ final class EngineManager: ObservableObject {
         process.send("setoption name \(name) value \(value)")
     }
 
-    func setSkillLevel(_ level: Int) {
+    /// Only "Skill Level" is used. Turning on UCI_LimitStrength would make
+    /// Stockfish ignore it in favour of UCI_Elo (default 1320), pinning every
+    /// handicapped game to the same weakest setting.
+    private func applySkillLevel(_ level: Int) {
+        guard level != appliedSkillLevel else { return }
         setOption("Skill Level", "\(level)")
-        setOption("UCI_LimitStrength", level < 20 ? "true" : "false")
+        setOption("UCI_LimitStrength", "false")
+        appliedSkillLevel = level
     }
 
     // MARK: - Commands
@@ -138,6 +152,7 @@ final class EngineManager: ObservableObject {
         defer { thinking = false }
 
         setOption("MultiPV", "\(options.multipv)")
+        applySkillLevel(options.skillLevel)
         await isReady()
         process.send("position fen \(options.fen)")
 
@@ -223,6 +238,10 @@ final class EngineManager: ObservableObject {
     // MARK: - Line handling
 
     private func handle(line: String) {
+        if line.hasPrefix("id name ") {
+            name = String(line.dropFirst("id name ".count))
+            return
+        }
         if line == "uciok" {
             resumeUCIOk(true)
             return

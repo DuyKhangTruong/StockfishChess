@@ -6,8 +6,10 @@
 //
 import SwiftUI
 
-struct ControlsView: View {
-    enum Mode { case analysis, play }
+enum ControlsMode { case analysis, play, match }
+
+struct ControlsView<MatchControls: View>: View {
+    typealias Mode = ControlsMode
 
     @Binding var mode: Mode
     @Binding var depth: Double
@@ -25,6 +27,8 @@ struct ControlsView: View {
     var fen: String
     var pgn: String
     var onLoadFEN: (String) -> Bool
+    /// Shown in place of the sliders while two engines play each other.
+    @ViewBuilder var matchControls: () -> MatchControls
 
     @State private var fenDraft = ""
     @State private var fenError = false
@@ -34,6 +38,7 @@ struct ControlsView: View {
             Picker("", selection: $mode) {
                 Text("Analyse").tag(Mode.analysis)
                 Text("Play engine").tag(Mode.play)
+                Text("Engine match").tag(Mode.match)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -41,6 +46,8 @@ struct ControlsView: View {
             if mode == .analysis {
                 sliderField(label: "Depth", value: $depth, range: 6...26, display: "\(Int(depth))")
                 sliderField(label: "Lines", value: $multipv, range: 1...5, display: "\(Int(multipv))")
+            } else if mode == .match {
+                matchControls()
             } else {
                 sliderField(label: "Engine strength", value: $skill, range: 0...20, display: "\(Int(skill))/20")
                 sliderField(label: "Thinking time", value: $movetimeMs, range: 100...3000, display: "\(Int(movetimeMs))ms")
