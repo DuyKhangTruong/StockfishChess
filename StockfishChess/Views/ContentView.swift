@@ -84,7 +84,13 @@ struct ContentView: View {
         .onChange(of: mode) { _ in scheduleSearch() }
         .onChange(of: depth) { _ in scheduleSearch() }
         .onChange(of: multipv) { _ in scheduleSearch() }
-        .onChange(of: playerColor) { _ in scheduleSearch() }
+        .onChange(of: playerColor) { newValue in
+            // Turn the board to face whoever you've chosen to play, so your
+            // own pieces are the ones nearest to hand. "Flip board" still
+            // works afterwards if you want to look from the other side.
+            orientation = newValue
+            scheduleSearch()
+        }
     }
 
     private var header: some View {
